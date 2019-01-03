@@ -1,6 +1,6 @@
 #define W_RADIO
 #ifdef W_RADIO
-//#define CLOUD_UPLOAD //tell gateway to store data on cloud
+#define CLOUD_UPLOAD //tell gateway to store data on cloud
 #include <SPI.h>
 #include <MKRWAN.h>
 #include <LoRa.h>
@@ -26,7 +26,7 @@ OneWire oneWire(ONE_WIRE_BUS);
 // Pass our oneWire reference to Dallas Temperature. 
 DallasTemperature sensors(&oneWire);
 
-#define N_SENSORS_MAX 3
+#define N_SENSORS_MAX 4
 #define N_MEASUREMENTS 1
 
 // Addresses of DS18b20 sensors connected to the 1-wire line. 
@@ -62,18 +62,24 @@ char *dtostrf (double val, signed char width, unsigned char prec, char *sout) {
 #define ICHARGE_MON
 #define ICHARGE_PIN A1
 
+#define SENSOR_POWER_SWITCH 4 //pin used to control the NPN transistor to turn power to the sensors
+
 int counter = 0;
 
 void setup() {
+
+  pinMode(SENSOR_POWER_SWITCH,OUTPUT);
+  digitalWrite(SENSOR_POWER_SWITCH,HIGH);
+   
   pinMode(LED_BUILTIN, OUTPUT);
-  for (byte i=0; i<10;++i)
+  for (byte i=0; i<20;++i)
   {
   digitalWrite(LED_BUILTIN, HIGH);
   delay(500); //delay to allow re-programming when sleeping
   digitalWrite(LED_BUILTIN, LOW);
   delay(500); //delay to allow re-programming when sleeping
   }
-  
+
   Serial.begin(115200);
 #ifdef DEBUG    
   while (!Serial);
@@ -88,31 +94,33 @@ void setup() {
 
 #ifdef W_HUM
    analogReadResolution(12);
-   analogReference(AR_INTERNAL1V65);
+//   analogReference(AR_INTERNAL1V65);
    for (unsigned int isens=0;isens<N_SENSORS_HUM;++isens)   
       pinMode(hum_sensors_input[isens], INPUT);
 #endif
 
 #ifdef VBAT_MON
    analogReadResolution(12);
-   analogReference(AR_INTERNAL1V65);
+ //  analogReference(AR_INTERNAL1V65);
    pinMode(ADC_BATTERY, INPUT);
 #endif
 
 #ifdef ICHARGE_MON
  pinMode(ICHARGE_PIN, INPUT);
 #endif
-
+ 
   LowPower.attachInterruptWakeup(RTC_ALARM_WAKEUP, dummy, CHANGE);
 }
 
 void loop() {
+ digitalWrite(SENSOR_POWER_SWITCH,HIGH);
+ delay(100);
 #ifdef W_TEMP  
-  char ltemp[30] = "";
+  char ltemp[N_SENSORS_MAX*10] = "";
   getTemp(ltemp); 
 #endif
 #ifdef W_HUM  
-  char lhum[30] = "";
+  char lhum[N_SENSORS_HUM*10] = "";
   getHumidity(lhum); 
 #endif
 #ifdef VBAT_MON
@@ -146,6 +154,7 @@ void loop() {
 #endif  
   counter++;
   //delay(10000);
+  digitalWrite(SENSOR_POWER_SWITCH,LOW);
   LowPower.sleep(SLEEP_TIME);
 }
 
@@ -323,7 +332,7 @@ void getTemp(char* logtemp){
 void getVbat(char* logtemp)
 {
    int adc=analogRead(ADC_BATTERY);
-   float vbat=(adc/4095.0)*1.65*(1.0/(33.0/(68.0+33.0)));
+   float vbat=(adc/4095.0)*3.3*(1.0/(33.0/(68.0+33.0)));
    strcat(logtemp,"BT/");
    char vmon[5] = "";
    dtostrf(vbat, 3, 2, vmon);
@@ -336,7 +345,7 @@ void getVbat(char* logtemp)
 void getIcharge(char* logtemp)
 {
    int adc=analogRead(ICHARGE_PIN);
-   float vbat=(adc/4095.0)*1.65;
+   float vbat=(adc/4095.0)*3.3;
    strcat(logtemp,"IC/");
    char vmon[5] = "";
    dtostrf(vbat, 3, 2, vmon);
@@ -357,7 +366,7 @@ void getHumidity(char* loghum)
     for (uint8_t iSensor=0;iSensor<nSensors;++iSensor)
     {
       int adc=analogRead(hum_sensors_input[iSensor]);
-      hMeas[iSensor]+=(adc/4095.0)*1.65; //maybe apply some humidity calibration?    
+      hMeas[iSensor]+=(adc/4095.0)*3.3; //maybe apply some humidity calibration?    
     }
   }
   
