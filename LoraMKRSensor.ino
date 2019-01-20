@@ -92,16 +92,15 @@ void setup() {
   findTempSensor();
 #endif  
 
-#ifdef W_HUM
+  //ADC stuff
    analogReadResolution(12);
-//   analogReference(AR_INTERNAL1V65);
+   analogReference(AR_INTERNAL1V0);
+#ifdef W_HUM
    for (unsigned int isens=0;isens<N_SENSORS_HUM;++isens)   
       pinMode(hum_sensors_input[isens], INPUT);
 #endif
 
 #ifdef VBAT_MON
-   analogReadResolution(12);
- //  analogReference(AR_INTERNAL1V65);
    pinMode(ADC_BATTERY, INPUT);
 #endif
 
@@ -332,7 +331,7 @@ void getTemp(char* logtemp){
 void getVbat(char* logtemp)
 {
    int adc=analogRead(ADC_BATTERY);
-   float vbat=(adc/4095.0)*3.3*(1.0/(33.0/(68.0+33.0)));
+   float vbat=(adc/4095.0)*((68.0+33.0)/33.0);
    strcat(logtemp,"BT/");
    char vmon[5] = "";
    dtostrf(vbat, 3, 2, vmon);
@@ -345,7 +344,7 @@ void getVbat(char* logtemp)
 void getIcharge(char* logtemp)
 {
    int adc=analogRead(ICHARGE_PIN);
-   float vbat=(adc/4095.0)*3.3;
+   float vbat=(adc/4095.0);
    strcat(logtemp,"IC/");
    char vmon[5] = "";
    dtostrf(vbat, 3, 2, vmon);
@@ -366,7 +365,7 @@ void getHumidity(char* loghum)
     for (uint8_t iSensor=0;iSensor<nSensors;++iSensor)
     {
       int adc=analogRead(hum_sensors_input[iSensor]);
-      hMeas[iSensor]+=(adc/4095.0)*3.3; //maybe apply some humidity calibration?    
+      hMeas[iSensor]+=(adc/4095.0)*(10.0+4.7)/4.7; //maybe apply some humidity calibration?    
     }
   }
   
@@ -395,19 +394,18 @@ void setupRadio()
   LoRa.setFrequency(868E6);
   LoRa.setSPIFrequency(100000);
 
-  //Mode 11 for PM LoRa Network
-  LoRa.setSignalBandwidth(125E3);
-  LoRa.setSpreadingFactor(7);
-  //LoRa.setSyncWord(0x45); //private syncword for PM network
-  LoRa.setCodingRate4(5);
-  LoRa.setPreambleLength(8);
-
-  LoRa.setTxPower(20, PA_OUTPUT_PA_BOOST_PIN);
-  
   if (!LoRa.begin(868E6)) {
     Serial.println("Starting LoRa failed!");
     while (1);
   }
+  //Mode 11 for PM LoRa Network
+  LoRa.setSignalBandwidth(125E3);
+  LoRa.setSpreadingFactor(12);
+  //LoRa.setSyncWord(0x45); //private syncword for PM network
+  LoRa.setCodingRate4(5);
+  LoRa.setPreambleLength(8);
+
+  LoRa.setTxPower(20, PA_OUTPUT_PA_BOOST_PIN);  
 #ifdef DEBUG  
   LoRa.dumpRegisters(Serial);
 #endif 
